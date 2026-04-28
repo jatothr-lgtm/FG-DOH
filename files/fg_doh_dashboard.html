@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FG DOH Dashboard · Farmley</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080b10;--bg2:#0d1117;--bg3:#131920;--bg4:#1a2230;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.11);
+  --text:#dde3ee;--text2:#7a8899;--text3:#45535f;
+  --accent:#38bdf8;
+  --c-crit:#ef4444;--cb-crit:rgba(239,68,68,0.13);--cbr-crit:rgba(239,68,68,0.3);
+  --c-low:#f97316;--cb-low:rgba(249,115,22,0.13);--cbr-low:rgba(249,115,22,0.3);
+  --c-watch:#eab308;--cb-watch:rgba(234,179,8,0.13);--cbr-watch:rgba(234,179,8,0.3);
+  --c-healthy:#22c55e;--cb-healthy:rgba(34,197,94,0.13);--cbr-healthy:rgba(34,197,94,0.3);
+  --c-over:#3b82f6;--cb-over:rgba(59,130,246,0.13);--cbr-over:rgba(59,130,246,0.3);
+  --c-dead:#4b5563;--cb-dead:rgba(75,85,99,0.1);--cbr-dead:rgba(75,85,99,0.25);
+  --c-stock:#7c3aed;--cb-stock:rgba(124,58,237,0.13);--cbr-stock:rgba(124,58,237,0.3);
+  --c-nodem:#6b7280;--cb-nodem:rgba(107,114,128,0.1);--cbr-nodem:rgba(107,114,128,0.25);
+}
+html{font-size:13px;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* GRID BACKGROUND */
+body::before{
+  content:'';position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(56,189,248,0.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(56,189,248,0.025) 1px,transparent 1px);
+  background-size:40px 40px;
+  pointer-events:none;z-index:0
+}
+
+/* HEADER */
+.hdr{
+  position:sticky;top:0;z-index:200;
+  background:rgba(8,11,16,0.9);
+  backdrop-filter:blur(16px);
+  border-bottom:1px solid var(--border);
+  padding:12px 28px;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  flex-wrap:wrap
+}
+.hdr-brand{display:flex;align-items:center;gap:10px}
+.hdr-icon{
+  width:38px;height:38px;border-radius:10px;
+  background:linear-gradient(135deg,#0ea5e9,#2563eb);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;box-shadow:0 0 24px rgba(14,165,233,0.35);
+  flex-shrink:0
+}
+.hdr-title{font-size:16px;font-weight:800;letter-spacing:-0.03em;color:#e8f0fa}
+.hdr-sub{font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:1px}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.badge-live{
+  display:flex;align-items:center;gap:5px;
+  font-size:10px;color:#22c55e;font-family:'JetBrains Mono',monospace;
+  padding:4px 9px;border-radius:20px;
+  background:rgba(34,197,94,0.1);border:1px solid rgba(34,197,94,0.25)
+}
+.pulse{width:6px;height:6px;border-radius:50%;background:#22c55e;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.8)}}
+.btn-refresh{
+  background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.25);
+  color:var(--accent);padding:6px 14px;border-radius:8px;
+  cursor:pointer;font-size:11px;font-weight:700;font-family:'Syne',sans-serif;
+  transition:all 0.2s;letter-spacing:0.04em
+}
+.btn-refresh:hover{background:rgba(56,189,248,0.18);border-color:rgba(56,189,248,0.45)}
+.timestamp{font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace}
+
+/* MAIN */
+.main{max-width:1500px;margin:0 auto;padding:22px 28px 50px;position:relative;z-index:1}
+
+/* SUMMARY STRIP */
+.summary-strip{
+  display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px
+}
+.stat-card{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:11px;padding:12px 16px;flex:1;min-width:100px;
+  transition:border-color 0.2s;cursor:default
+}
+.stat-card:hover{border-color:var(--border2)}
+.stat-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;font-weight:600;margin-bottom:4px}
+.stat-val{font-size:20px;font-weight:800;font-family:'JetBrains Mono',monospace;line-height:1}
+.stat-sub{font-size:9px;color:var(--text3);margin-top:3px}
+
+/* CONTROLS */
+.controls{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:12px;padding:12px 16px;margin-bottom:14px;
+  display:flex;gap:10px;flex-wrap:wrap;align-items:center
+}
+.search-wrap{position:relative;flex:1;min-width:200px}
+.search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none}
+input.search{
+  width:100%;background:rgba(255,255,255,0.04);
+  border:1px solid var(--border);border-radius:8px;
+  color:var(--text);padding:8px 10px 8px 30px;font-size:12px;
+  font-family:'Syne',sans-serif;outline:none;transition:border-color 0.2s
+}
+input.search:focus{border-color:rgba(56,189,248,0.4)}
+input.search::placeholder{color:var(--text3)}
+select.flt{
+  background:rgba(255,255,255,0.04);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);padding:8px 10px;font-size:12px;
+  font-family:'Syne',sans-serif;outline:none;cursor:pointer;transition:border-color 0.2s
+}
+select.flt:focus{border-color:rgba(56,189,248,0.4)}
+select.flt option{background:#0d1117}
+.btn-sort{
+  background:rgba(56,189,248,0.09);border:1px solid rgba(56,189,248,0.22);
+  color:var(--accent);padding:8px 14px;border-radius:8px;
+  cursor:pointer;font-size:11px;font-weight:700;font-family:'Syne',sans-serif;
+  white-space:nowrap;transition:all 0.2s;letter-spacing:0.03em
+}
+.btn-sort:hover{background:rgba(56,189,248,0.16)}
+.count-info{font-size:11px;color:var(--text3);margin-left:auto;white-space:nowrap;font-family:'JetBrains Mono',monospace}
+.btn-toggle{
+  background:rgba(255,255,255,0.05);border:1px solid var(--border2);
+  color:var(--text2);padding:7px 13px;border-radius:8px;
+  cursor:pointer;font-size:11px;font-weight:700;font-family:'Syne',sans-serif;
+  white-space:nowrap;transition:all 0.2s;letter-spacing:0.03em;
+  display:inline-flex;align-items:center;gap:5px
+}
+.btn-toggle.mode-kg{background:rgba(34,197,94,0.11);border-color:rgba(34,197,94,0.35);color:#22c55e}
+.btn-toggle.mode-unit{background:rgba(56,189,248,0.11);border-color:rgba(56,189,248,0.35);color:var(--accent)}
+
+/* LEGEND PILLS */
+.legend{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.leg-pill{
+  display:flex;align-items:center;gap:5px;
+  padding:4px 10px;border-radius:20px;
+  background:rgba(255,255,255,0.02);border:1px solid var(--border);
+  cursor:pointer;font-size:10px;color:var(--text2);
+  transition:all 0.15s;font-weight:600;user-select:none
+}
+.leg-pill:hover,.leg-pill.active{background:var(--pill-bg);border-color:var(--pill-br);color:var(--pill-c)}
+.leg-num{font-family:'JetBrains Mono',monospace;font-size:10px;opacity:0.7}
+
+/* TABLE */
+.tbl-wrap{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:14px;overflow:hidden;
+}
+.tbl-head{
+  display:grid;
+  grid-template-columns: 2.6fr 90px 108px 1.1fr 96px 90px 78px 78px 102px;
+  padding:9px 16px;
+  background:rgba(255,255,255,0.025);
+  border-bottom:1px solid var(--border);
+  font-size:9px;font-weight:700;color:var(--text3);
+  letter-spacing:0.08em;text-transform:uppercase
+}
+.tbl-row{
+  display:grid;
+  grid-template-columns: 2.6fr 90px 108px 1.1fr 96px 90px 78px 78px 102px;
+  padding:11px 16px;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+  border-left:3px solid var(--row-accent,transparent);
+  cursor:pointer;
+  transition:background 0.12s;
+  align-items:center
+}
+.tbl-row:hover{background:rgba(255,255,255,0.035)}
+.tbl-row.expanded{background:rgba(56,189,248,0.04)}
+.tbl-row:last-child{border-bottom:none}
+
+.cell-item-name{font-size:12px;font-weight:600;color:#dde3ee;line-height:1.3}
+.cell-item-code{font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:2px}
+.cell-group{font-size:10px;color:var(--text3);margin-top:1px}
+.origin-badge{
+  font-size:10px;padding:2px 7px;border-radius:5px;
+  background:rgba(255,255,255,0.05);color:var(--text2);
+  border:1px solid var(--border);display:inline-block;white-space:nowrap
+}
+.status-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:2px 8px;border-radius:20px;
+  font-size:10px;font-weight:700;white-space:nowrap;
+  border:1px solid
+}
+.num{font-family:'JetBrains Mono',monospace;font-size:11px;text-align:right;color:var(--text)}
+.num-dim{color:var(--text2)}
+.num-r{text-align:right}
+
+/* DOH BAR */
+.doh-wrap{display:flex;align-items:center;gap:7px}
+.doh-track{flex:1;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden}
+.doh-fill{height:100%;border-radius:3px;transition:width 0.7s cubic-bezier(0.4,0,0.2,1)}
+.doh-val{font-family:'JetBrains Mono',monospace;font-size:11px;min-width:40px;text-align:right;font-weight:600}
+
+/* EXPANDED ROW */
+.exp-row{
+  border-left:3px solid var(--row-accent,transparent);
+  background:rgba(56,189,248,0.03);
+  border-bottom:1px solid rgba(255,255,255,0.04);
+  padding:12px 18px 12px 34px;
+  display:flex;gap:28px;flex-wrap:wrap;
+  animation:slideDown 0.18s ease
+}
+@keyframes slideDown{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.exp-field{min-width:110px}
+.exp-label{font-size:9px;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:3px;font-weight:600}
+.exp-val{font-size:12px;font-family:'JetBrains Mono',monospace;color:#c2ccd8;font-weight:500}
+.exp-val.hi{color:var(--accent);font-weight:700;font-size:13px}
+
+/* EMPTY */
+.empty{padding:50px;text-align:center;color:var(--text3)}
+.empty-icon{font-size:32px;margin-bottom:10px}
+
+/* FOOTER */
+.footer{
+  margin-top:18px;display:flex;justify-content:space-between;
+  align-items:center;flex-wrap:wrap;gap:6px
+}
+.footer-note{font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace}
+
+/* APPS SCRIPT BANNER */
+.as-banner{
+  background:rgba(56,189,248,0.07);border:1px solid rgba(56,189,248,0.2);
+  border-radius:10px;padding:10px 16px;margin-bottom:16px;
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap
+}
+.as-banner input{
+  flex:1;min-width:280px;background:rgba(255,255,255,0.06);
+  border:1px solid rgba(56,189,248,0.25);border-radius:7px;
+  color:#e8f0fa;padding:7px 10px;font-size:11px;
+  font-family:'JetBrains Mono',monospace;outline:none
+}
+.as-banner input::placeholder{color:var(--text3)}
+.as-banner .btn-connect{
+  background:var(--accent);color:#080b10;border:none;
+  padding:7px 16px;border-radius:7px;cursor:pointer;
+  font-weight:800;font-size:11px;font-family:'Syne',sans-serif;
+  letter-spacing:0.04em;transition:opacity 0.2s
+}
+.as-banner .btn-connect:hover{opacity:0.85}
+.as-label{font-size:11px;color:var(--accent);font-weight:700}
+
+@media(max-width:900px){
+  .tbl-head,.tbl-row{grid-template-columns:2fr 70px 100px 1fr 80px 70px}
+  .tbl-head > *:nth-child(7),.tbl-head > *:nth-child(8),.tbl-head > *:nth-child(9),
+  .tbl-row > *:nth-child(7),.tbl-row > *:nth-child(8),.tbl-row > *:nth-child(9){display:none}
+}
+@media(max-width:600px){
+  .main{padding:14px 12px 40px}
+  .hdr{padding:10px 14px}
+  .tbl-head,.tbl-row{grid-template-columns:1fr 90px 100px 1fr}
+  .tbl-head > *:nth-child(n+3):not(:nth-child(3)):not(:nth-child(4)),
+  .tbl-row > *:nth-child(n+3):not(:nth-child(3)):not(:nth-child(4)){display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="hdr-brand">
+    <div class="hdr-icon">📦</div>
+    <div>
+      <div class="hdr-title">FG DOH Dashboard</div>
+      <div class="hdr-sub">Finished Goods Days on Hand · Farmley</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <span class="badge-live"><span class="pulse"></span>LIVE</span>
+    <span class="timestamp" id="ts">—</span>
+    <button class="btn-refresh" onclick="fetchLive()">↺ Refresh</button>
+  </div>
+</header>
+
+<main class="main">
+
+  <!-- APPS SCRIPT URL CONNECTOR -->
+  <div class="as-banner">
+    <span class="as-label">🔗 Connect Google Sheet</span>
+    <input type="text" id="asUrl" placeholder="Paste Apps Script Web App URL here…" />
+    <button class="btn-connect" onclick="connectSheet()">Connect &amp; Fetch</button>
+    <span id="connStatus" style="font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace"></span>
+  </div>
+
+  <!-- SUMMARY STRIP -->
+  <div class="summary-strip" id="summaryStrip"></div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input class="search" type="text" id="searchInput" placeholder="Search item name, code, group…" oninput="applyFilters()">
+    </div>
+    <select class="flt" id="originFlt" onchange="applyFilters()">
+      <option value="">All Origins</option>
+    </select>
+    <select class="flt" id="groupFlt" onchange="applyFilters()">
+      <option value="">All Groups</option>
+    </select>
+    <select class="flt" id="statusFlt" onchange="applyFilters()">
+      <option value="">All Statuses</option>
+    </select>
+    <button class="btn-toggle mode-kg" id="unitToggle" onclick="toggleUnit()" title="Toggle between KG and Units mode">📦 KG Mode</button>
+    <button class="btn-sort" id="sortBtn" onclick="toggleSort()">↑ Critical First</button>
+    <span class="count-info" id="countInfo">0 items</span>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend" id="legend"></div>
+
+  <!-- TABLE -->
+  <div class="tbl-wrap">
+    <div class="tbl-head" id="tblHead">
+      <div>Item</div>
+      <div>Origin</div>
+      <div>Status</div>
+      <div>DOH</div>
+      <div class="num-r" id="hdrInhand">Inhand KG</div>
+      <div class="num-r" id="hdrDemand">Avg Demand</div>
+      <div class="num-r" id="hdrSoQty">SO KG</div>
+      <div class="num-r">SO Days</div>
+      <div class="num-r">Value ₹</div>
+    </div>
+    <div id="tableBody"></div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <span class="footer-note" id="footerNote">FG DOH = Inhand KG ÷ (Total SO KG ÷ Unique SO Days) · Perishable shelf life 8 months</span>
+    <span class="footer-note" id="dataNote"></span>
+  </div>
+
+</main>
+
+<script>
+const STATUS_CFG = {
+  Critical:          {c:'#ef4444',bg:'rgba(239,68,68,0.13)',br:'rgba(239,68,68,0.3)',   e:'🔴',ord:0},
+  Stockout:          {c:'#dc2626',bg:'rgba(220,38,38,0.15)',br:'rgba(220,38,38,0.4)',   e:'⛔',ord:1},
+  Low:               {c:'#f97316',bg:'rgba(249,115,22,0.13)',br:'rgba(249,115,22,0.3)', e:'🟠',ord:2},
+  Watch:             {c:'#eab308',bg:'rgba(234,179,8,0.13)',br:'rgba(234,179,8,0.3)',   e:'🟡',ord:3},
+  Healthy:           {c:'#22c55e',bg:'rgba(34,197,94,0.13)',br:'rgba(34,197,94,0.3)',   e:'🟢',ord:4},
+  Overstocked:       {c:'#3b82f6',bg:'rgba(59,130,246,0.13)',br:'rgba(59,130,246,0.3)', e:'🔵',ord:5},
+  'No Recent Demand':{c:'#6b7280',bg:'rgba(107,114,128,0.1)',br:'rgba(107,114,128,0.25)',e:'⚪',ord:6},
+  'Dead Stock':      {c:'#4b5563',bg:'rgba(75,85,99,0.1)',br:'rgba(75,85,99,0.25)',     e:'⚫',ord:7},
+};
+
+const EMBEDDED_DATA = [{"itemCode":"Almonds_1-1748","itemName":"Premium California Almonds Farmley Standee Pouch 500 g","origin":"Indore","itemGroup":"Almonds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":1210421.02,"age":3.0,"inhandQty":1896.0,"totalSoQty":5140.0,"uniqueDays":19,"avgDailyDemand":270.53,"fgDoh":7.01,"status":"Watch","hasRecentDemand":true},{"itemCode":"Almonds_1-194","itemName":"Popular California Almonds Farmley Standee Pouch 250 g","origin":"Indore","itemGroup":"Almonds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":208860.53,"age":37.0,"inhandQty":294.0,"totalSoQty":180.0,"uniqueDays":11,"avgDailyDemand":16.36,"fgDoh":17.97,"status":"Healthy","hasRecentDemand":true},{"itemCode":"Almonds_1-1991","itemName":"Premium California Almonds Farmley Standee Pouch 1 Kg","origin":"Indore","itemGroup":"Almonds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":417559.26,"age":34.0,"inhandQty":536.0,"totalSoQty":16.0,"uniqueDays":1,"avgDailyDemand":16.0,"fgDoh":33.5,"status":"Overstocked","hasRecentDemand":true},{"itemCode":"Almonds_1-1992","itemName":"Premium California Almonds Farmley Standee Pouch 250 g","origin":"Indore","itemGroup":"Almonds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":29467.49,"age":7.0,"inhandQty":90.0,"totalSoQty":2512.5,"uniqueDays":23,"avgDailyDemand":109.24,"fgDoh":0.82,"status":"Critical","hasRecentDemand":true},{"itemCode":"Almonds_1-2653","itemName":"Roasted & Salted Almonds Farmley Standee Pouch 40 g","origin":"Indore","itemGroup":"Almonds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":4915.14,"age":28.5,"inhandQty":5.6,"totalSoQty":25.2,"uniqueDays":9,"avgDailyDemand":2.8,"fgDoh":2.0,"status":"Critical","hasRecentDemand":true},{"itemCode":"Apricot_2-2540","itemName":"Premium Turkish Dried Apricot Farmley Standee Pouch 200 g","origin":"Indore","itemGroup":"Apricot","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":24914.94,"age":1.0,"inhandQty":126.0,"totalSoQty":4002.2,"uniqueDays":24,"avgDailyDemand":166.76,"fgDoh":0.76,"status":"Critical","hasRecentDemand":true},{"itemCode":"Cashewnut_3-1736","itemName":"Premium W320 Cashew Farmley Vacuum Standee Pouch 250 g","origin":"Udupi","itemGroup":"Cashewnut","warehouse":"CMC Udupi - Finished Goods Stores - CBSPL","value":0.0,"age":1.0,"inhandQty":90.0,"totalSoQty":3380.0,"uniqueDays":21,"avgDailyDemand":160.95,"fgDoh":0.56,"status":"Critical","hasRecentDemand":true},{"itemCode":"Cashewnut_3-1987","itemName":"Premium W320 Cashew Farmley Standee Pouch 500 g","origin":"Indore","itemGroup":"Cashewnut","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":2665295.56,"age":8.38,"inhandQty":4270.0,"totalSoQty":0,"uniqueDays":0,"avgDailyDemand":0,"fgDoh":null,"status":"Dead Stock","hasRecentDemand":false},{"itemCode":"Cashewnut_3-1987","itemName":"Premium W320 Cashew Farmley Standee Pouch 500 g","origin":"Udupi","itemGroup":"Cashewnut","warehouse":"CMC Udupi - Finished Goods Stores - CBSPL","value":97765.57,"age":4.0,"inhandQty":120.0,"totalSoQty":11173.0,"uniqueDays":23,"avgDailyDemand":485.78,"fgDoh":0.25,"status":"Critical","hasRecentDemand":true},{"itemCode":"Cashewnut_3-1988","itemName":"Premium W320 Cashew Farmley Standee Pouch 1 Kg","origin":"Udupi","itemGroup":"Cashewnut","warehouse":"CMC Udupi - Finished Goods Stores - CBSPL","value":565766.97,"age":56.86,"inhandQty":700.0,"totalSoQty":50.0,"uniqueDays":2,"avgDailyDemand":25.0,"fgDoh":28.0,"status":"Healthy","hasRecentDemand":true},{"itemCode":"Cashewnut_3-2430","itemName":"Popular W400 Cashew Farmley Generic Pouch 1 kg - Pack of 2 (500 g Each)","origin":"Udupi","itemGroup":"Cashewnut","warehouse":"CMC Udupi - Finished Goods Stores - CBSPL","value":8005.76,"age":3.0,"inhandQty":10.0,"totalSoQty":310.0,"uniqueDays":6,"avgDailyDemand":51.67,"fgDoh":0.19,"status":"Critical","hasRecentDemand":true},{"itemCode":"Cashewnut_3-2472","itemName":"Roasted and Salted Cashew - Farmley Standee Pouch 200 g","origin":"Indore","itemGroup":"Cashewnut","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":367245.71,"age":18.0,"inhandQty":444.0,"totalSoQty":613.0,"uniqueDays":16,"avgDailyDemand":38.31,"fgDoh":11.59,"status":"Watch","hasRecentDemand":true},{"itemCode":"Cashewnut_3-2978","itemName":"Roasted & Salted Cashew - Farmley Standee Pouch 150 g","origin":"Indore","itemGroup":"Cashewnut","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":53737.7,"age":4.0,"inhandQty":76.5,"totalSoQty":1364.7,"uniqueDays":23,"avgDailyDemand":59.33,"fgDoh":1.29,"status":"Critical","hasRecentDemand":true},{"itemCode":"Cashewnut_3-447","itemName":"Popular W400 Cashew Farmley Generic Pouch 500 g","origin":"Udupi","itemGroup":"Cashewnut","warehouse":"CMC Udupi - Finished Goods Stores - CBSPL","value":91879.37,"age":4.0,"inhandQty":115.0,"totalSoQty":7599.5,"uniqueDays":22,"avgDailyDemand":345.43,"fgDoh":0.33,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dates_04-2878","itemName":"Premium Omani Fard Dates Farmley Standee Pouch 35 g","origin":"Indore","itemGroup":"Dates","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":-19923.94,"age":4.4,"inhandQty":12.25,"totalSoQty":1308.3,"uniqueDays":13,"avgDailyDemand":100.64,"fgDoh":0.12,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dates_04-30053","itemName":"Dark Choco-Orange Date Bites Monocarton 240 g - Pack of 12 (20 g Each)","origin":"Indore","itemGroup":"Desserts","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":6206.73,"age":1.0,"inhandQty":9.6,"totalSoQty":0,"uniqueDays":0,"avgDailyDemand":0,"fgDoh":null,"status":"Dead Stock","hasRecentDemand":false},{"itemCode":"Dates_04-30057","itemName":"Apple Pie Date Bite Farmley Tin Jar 200g","origin":"Indore","itemGroup":"Desserts","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":3361.88,"age":1.0,"inhandQty":4.8,"totalSoQty":4565.0,"uniqueDays":23,"avgDailyDemand":198.48,"fgDoh":0.02,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dates_04-30567","itemName":"Apple Pie Date Bites Farmley Monocarton 240 g - Pack of 12 (20 g Each)","origin":"Indore","itemGroup":"Desserts","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":1305.31,"age":3.0,"inhandQty":5.76,"totalSoQty":1059.84,"uniqueDays":20,"avgDailyDemand":52.99,"fgDoh":0.11,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dates_15-30109","itemName":"Classic Date Bites Farmley Sachet 20 g - Single Serve","origin":"Indore","itemGroup":"Desserts","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":-33440.3,"age":1.35,"inhandQty":73.44,"totalSoQty":11073.96,"uniqueDays":24,"avgDailyDemand":461.42,"fgDoh":0.16,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dates_15-30110","itemName":"Dark Choco Orange Date Bites Farmley Sachet 20 g - Single Serve","origin":"Indore","itemGroup":"Desserts","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":-13693.14,"age":1.0,"inhandQty":9.6,"totalSoQty":3995.94,"uniqueDays":23,"avgDailyDemand":173.74,"fgDoh":0.06,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dates_15-30111","itemName":"Apple Pie Date Bite Farmley sachet 20 g - Single serve","origin":"Indore","itemGroup":"Desserts","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":-2461.26,"age":2.0,"inhandQty":5.76,"totalSoQty":2830.5,"uniqueDays":23,"avgDailyDemand":123.07,"fgDoh":0.05,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dates_15-30144","itemName":"Assorted Pack Farmley 60g Dark Choco Orange Date Bite 20g, Classic Date Bite 20g, Apple Pie Date Bite 20g","origin":"Indore","itemGroup":"Desserts","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":11437.18,"age":1.6,"inhandQty":22.5,"totalSoQty":2394.3,"uniqueDays":23,"avgDailyDemand":104.1,"fgDoh":0.22,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dates_4-20161","itemName":"Coffee Rush Date Bite Farmley Sachet 20g- Single Serve","origin":"Indore","itemGroup":"Desserts","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":2305.75,"age":1.0,"inhandQty":5.76,"totalSoQty":3097.3,"uniqueDays":23,"avgDailyDemand":134.67,"fgDoh":0.04,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dates_4-20162","itemName":"Coffee Rush Date Bite Farmley Tin Jar 200g\t","origin":"Indore","itemGroup":"Desserts","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":-25368.29,"age":1.0,"inhandQty":9.6,"totalSoQty":3399.0,"uniqueDays":23,"avgDailyDemand":147.78,"fgDoh":0.06,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dates_4-20171","itemName":"Coffee Rush Date Bite Farmley Mono Carton Farmley 240 g - Pack of 12 (20 g Each)","origin":"Indore","itemGroup":"Desserts","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":-7822.4,"age":2.0,"inhandQty":8.64,"totalSoQty":1317.6,"uniqueDays":20,"avgDailyDemand":65.88,"fgDoh":0.13,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dates_4-20173","itemName":"Dark Choco-Orange Date Bite Farmley Monocarton 360g -Pack of 6 (60g each)- with SRP","origin":"Indore","itemGroup":"Desserts","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":22791.55,"age":12.13,"inhandQty":34.56,"totalSoQty":103.92,"uniqueDays":5,"avgDailyDemand":20.78,"fgDoh":1.66,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dates_4-2469","itemName":"Premium Omani Fard Dates Farmley standee pouch 400 g","origin":"Indore","itemGroup":"Dates","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":-133064.73,"age":1.0,"inhandQty":1072.8,"totalSoQty":23012.4,"uniqueDays":26,"avgDailyDemand":885.09,"fgDoh":1.21,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dates_4-2469","itemName":"Premium Omani Fard Dates Farmley standee pouch 400 g","origin":"Indore","itemGroup":"Dates","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":-133064.73,"age":1.0,"inhandQty":1072.8,"totalSoQty":5.0,"uniqueDays":1,"avgDailyDemand":5.0,"fgDoh":214.56,"status":"Overstocked","hasRecentDemand":true},{"itemCode":"Dates_4-2566","itemName":"Classic Date Bites Farmley Monocarton 240 g - Pack of 12 (20 g Each)","origin":"Indore","itemGroup":"Desserts","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":127293.55,"age":1.0,"inhandQty":211.68,"totalSoQty":4786.64,"uniqueDays":22,"avgDailyDemand":217.57,"fgDoh":0.97,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dates_4-30101","itemName":"Dark Choco-Orange Date Bite Farmley Tin Jar 200g","origin":"Indore","itemGroup":"Desserts","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":-33207.26,"age":1.0,"inhandQty":38.8,"totalSoQty":5889.6,"uniqueDays":23,"avgDailyDemand":256.07,"fgDoh":0.15,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dates_4-30567","itemName":"Classic Date Bites Farmley Tin Jar 200 g","origin":"Indore","itemGroup":"Desserts","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":255089.65,"age":1.0,"inhandQty":787.2,"totalSoQty":29688.8,"uniqueDays":24,"avgDailyDemand":1237.03,"fgDoh":0.64,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dried Fruits_5-2543","itemName":"Premium California Whole Dried Cranberries Farmley Standee Pouch 200 g","origin":"Indore","itemGroup":"Dried Fruits","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":-40520.45,"age":1.0,"inhandQty":246.0,"totalSoQty":5181.0,"uniqueDays":23,"avgDailyDemand":225.26,"fgDoh":1.09,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dried Fruits_5-30134","itemName":"Masala Cranberry Farmley Pillow Pack 18g- single serve","origin":"Indore","itemGroup":"Dried Fruits","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":71764.43,"age":17.53,"inhandQty":157.68,"totalSoQty":186.37,"uniqueDays":16,"avgDailyDemand":11.65,"fgDoh":13.54,"status":"Watch","hasRecentDemand":true},{"itemCode":"Dried Fruits_5-30135","itemName":"Masala Cranberry Farmley Pillow Pack 18g-ladi","origin":"Indore","itemGroup":"Dried Fruits","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":8801.62,"age":3.0,"inhandQty":19.44,"totalSoQty":209.52,"uniqueDays":20,"avgDailyDemand":10.48,"fgDoh":1.86,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2402","itemName":"Trail Mix Farmley Standee Pouch 200 g","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":322397.38,"age":1.0,"inhandQty":696.0,"totalSoQty":12075.6,"uniqueDays":26,"avgDailyDemand":464.45,"fgDoh":1.5,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2403","itemName":"Seed Mix Farmley Standee Pouch 200 g","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":170941.54,"age":3.0,"inhandQty":750.0,"totalSoQty":30672.4,"uniqueDays":26,"avgDailyDemand":1179.71,"fgDoh":0.64,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2404","itemName":"Berry Mix Farmley Standee Pouch 200 g","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":-78000.31,"age":2.0,"inhandQty":168.0,"totalSoQty":17635.0,"uniqueDays":26,"avgDailyDemand":678.27,"fgDoh":0.25,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2787","itemName":"Trail Mix Farmley Standee Pouch 160 g","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":2574.91,"age":2.0,"inhandQty":4.8,"totalSoQty":53.44,"uniqueDays":8,"avgDailyDemand":6.68,"fgDoh":0.72,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2800","itemName":"Premium Panchmeva Farmley Jar 425 g- Institutional","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":92502.35,"age":2.27,"inhandQty":224.4,"totalSoQty":3284.4,"uniqueDays":21,"avgDailyDemand":156.4,"fgDoh":1.43,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2801","itemName":"Premium Panchmeva Farmley Jar 405 g","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":431930.23,"age":1.75,"inhandQty":1427.22,"totalSoQty":32489.1,"uniqueDays":23,"avgDailyDemand":1412.57,"fgDoh":1.01,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2851","itemName":"Premium Panchmeva Farmley Jar 850g - Pack of 2 (425g each)","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":64012.62,"age":6.0,"inhandQty":112.2,"totalSoQty":204.0,"uniqueDays":2,"avgDailyDemand":102.0,"fgDoh":1.1,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2853","itemName":"Nut Mix Farmley Monocarton 50g - Institutional","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":394.62,"age":3.0,"inhandQty":0.35,"totalSoQty":1197.25,"uniqueDays":3,"avgDailyDemand":399.08,"fgDoh":0.0,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2856","itemName":"Premium Panchmeva\u00a0Farmley\u00a0Pillow\u00a0Pouch\u00a021g (In SRP 8 Pcs Each)","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":9503.05,"age":2.5,"inhandQty":15.12,"totalSoQty":1444.17,"uniqueDays":20,"avgDailyDemand":72.21,"fgDoh":0.21,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2858","itemName":"Mexican Peri Peri Snack\u00a0Mix\u00a0Farmley\u00a0Pillow\u00a0Pouch\u00a021g (In SRP 8 Pcs Each)","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":18859.11,"age":2.29,"inhandQty":35.28,"totalSoQty":605.01,"uniqueDays":10,"avgDailyDemand":60.5,"fgDoh":0.58,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2858","itemName":"Mexican Peri Peri Snack\u00a0Mix\u00a0Farmley\u00a0Pillow\u00a0Pouch\u00a021g (In SRP 8 Pcs Each)","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":18859.11,"age":2.29,"inhandQty":35.28,"totalSoQty":446.04,"uniqueDays":18,"avgDailyDemand":24.78,"fgDoh":1.42,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2879","itemName":"Tropical Savoury Mix Farmley Standee Pouch 160g","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":2693.08,"age":43.0,"inhandQty":4.8,"totalSoQty":187.2,"uniqueDays":12,"avgDailyDemand":15.6,"fgDoh":0.31,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2880","itemName":"Premium Panchmeva Farmley Standee Pouch 160g","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":21321.58,"age":28.0,"inhandQty":43.2,"totalSoQty":1421.76,"uniqueDays":25,"avgDailyDemand":56.87,"fgDoh":0.76,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2941","itemName":"Seed mix Farmley 160g Standee Pouches","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":-1861.24,"age":3.0,"inhandQty":38.4,"totalSoQty":528.64,"uniqueDays":12,"avgDailyDemand":44.05,"fgDoh":0.87,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2950","itemName":"Premium Panchmeva Farmley Pillow Pouch 21 g - Pack of 10 (Ladi)","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":3326.19,"age":3.0,"inhandQty":5.88,"totalSoQty":882.0,"uniqueDays":20,"avgDailyDemand":44.1,"fgDoh":0.13,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2951","itemName":"Mexican Peri Peri Snack Mix\u00a0Farmley 21g - Pack of 10 (Ladi)","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":19757.99,"age":1.0,"inhandQty":41.16,"totalSoQty":2302.02,"uniqueDays":16,"avgDailyDemand":143.88,"fgDoh":0.29,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-2951","itemName":"Mexican Peri Peri Snack Mix\u00a0Farmley 21g - Pack of 10 (Ladi)","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":19757.99,"age":1.0,"inhandQty":41.16,"totalSoQty":370.44,"uniqueDays":3,"avgDailyDemand":123.48,"fgDoh":0.33,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-30134","itemName":"Smokey BBQ Party Mix Pillow Pouch Farmley 28 g- Single serve","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":23226.28,"age":10.0,"inhandQty":39.2,"totalSoQty":382.23,"uniqueDays":23,"avgDailyDemand":16.62,"fgDoh":2.36,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-30135","itemName":"Sweet and Salty Mix Farmley Pillow Pouch 23g (In SRP 8 Pcs Each)","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":7081.09,"age":1.0,"inhandQty":13.8,"totalSoQty":187.68,"uniqueDays":13,"avgDailyDemand":14.44,"fgDoh":0.96,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-30135","itemName":"Sweet and Salty Mix Farmley Pillow Pouch 23g (In SRP 8 Pcs Each)","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":7081.09,"age":1.0,"inhandQty":13.8,"totalSoQty":71.78,"uniqueDays":6,"avgDailyDemand":11.96,"fgDoh":1.15,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-30136","itemName":"Fruit and Nut Mix Farmley Pillow Pouch 28g- Single serve","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":52795.51,"age":16.0,"inhandQty":85.36,"totalSoQty":290.05,"uniqueDays":19,"avgDailyDemand":15.27,"fgDoh":5.59,"status":"Low","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-30141","itemName":"Sweet and Salty Mix Farmley Pillow Pouch 23g- Ladi (Pack of 10)","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":24041.84,"age":1.0,"inhandQty":52.44,"totalSoQty":107.75,"uniqueDays":6,"avgDailyDemand":17.96,"fgDoh":2.92,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-30141","itemName":"Sweet and Salty Mix Farmley Pillow Pouch 23g- Ladi (Pack of 10)","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":24041.84,"age":1.0,"inhandQty":52.44,"totalSoQty":69.0,"uniqueDays":8,"avgDailyDemand":8.62,"fgDoh":6.08,"status":"Low","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-30155","itemName":"Premium Panchmeva Farmley Pillow Pouch 30g- single serve","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":253473.15,"age":2.0,"inhandQty":591.0,"totalSoQty":4385.67,"uniqueDays":23,"avgDailyDemand":190.68,"fgDoh":3.1,"status":"Low","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-30158","itemName":"Mexican Peri-Peri Snack Mix Farmley Pillow Pouch 35 g- Single Serve","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":18028.64,"age":1.0,"inhandQty":58.8,"totalSoQty":3667.3,"uniqueDays":23,"avgDailyDemand":159.45,"fgDoh":0.37,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-30159","itemName":"Mexican Peri Peri Snack Mix Farmley Composite Jar 325 g","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":3837.79,"age":4.0,"inhandQty":7.8,"totalSoQty":4106.38,"uniqueDays":22,"avgDailyDemand":186.65,"fgDoh":0.04,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-30160","itemName":"Trail Mix Farmley Composite Jar 325 g","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":26531.15,"age":4.0,"inhandQty":46.8,"totalSoQty":2002.0,"uniqueDays":21,"avgDailyDemand":95.33,"fgDoh":0.49,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-30163","itemName":"Party Mix Farmley Pillow Pouch 35g- in SRP","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":36798.5,"age":14.0,"inhandQty":70.56,"totalSoQty":0.14,"uniqueDays":1,"avgDailyDemand":0.14,"fgDoh":504.0,"status":"Overstocked","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-30173","itemName":"Premium Panchmeva Farmley 905g Jar","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":47991.84,"age":3.0,"inhandQty":86.88,"totalSoQty":4832.7,"uniqueDays":22,"avgDailyDemand":219.67,"fgDoh":0.4,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-30173","itemName":"Premium Panchmeva Farmley 905g Jar","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":47991.84,"age":3.0,"inhandQty":86.88,"totalSoQty":228.06,"uniqueDays":6,"avgDailyDemand":38.01,"fgDoh":2.29,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-30572","itemName":"Satva Mix Farmley Standee Pouch 120g","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":8529.21,"age":4.0,"inhandQty":14.4,"totalSoQty":1160.88,"uniqueDays":23,"avgDailyDemand":50.47,"fgDoh":0.29,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-3070","itemName":"Berry Mix Farmley Jar 300g - E/US","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":80303.85,"age":1.0,"inhandQty":151.2,"totalSoQty":302.4,"uniqueDays":2,"avgDailyDemand":151.2,"fgDoh":1.0,"status":"Critical","hasRecentDemand":true},{"itemCode":"Dry Fruit Mix_15-3072","itemName":"Trail Mix Farmley Jar 450g - E/US","origin":"Indore","itemGroup":"Dry Fruit Mix","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":29395.81,"age":1.0,"inhandQty":54.0,"totalSoQty":108.0,"uniqueDays":2,"avgDailyDemand":54.0,"fgDoh":1.0,"status":"Critical","hasRecentDemand":true},{"itemCode":"Fig_6-2464","itemName":"Premium Anjeer Farmley Standee Pouch 200 g","origin":"Indore","itemGroup":"Fig","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":-140595.29,"age":1.0,"inhandQty":6.0,"totalSoQty":4174.8,"uniqueDays":26,"avgDailyDemand":160.57,"fgDoh":0.04,"status":"Critical","hasRecentDemand":true},{"itemCode":"Fig_6-2680","itemName":"Premium Figs Farmley Standee Pouch 400 g - Pack of 2 (200 g each)","origin":"Indore","itemGroup":"Fig","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":5355.11,"age":6.0,"inhandQty":6.0,"totalSoQty":72.0,"uniqueDays":4,"avgDailyDemand":18.0,"fgDoh":0.33,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-2580","itemName":"RM 4+ Suta Makhana PP Bag 10 Kg","origin":"Purnea","itemGroup":"Makhana","warehouse":"CMC Purnia New - Finished Goods Stores - CBSPL","value":4754925.34,"age":0.3,"inhandQty":5086.61,"totalSoQty":0,"uniqueDays":0,"avgDailyDemand":0,"fgDoh":null,"status":"Dead Stock","hasRecentDemand":false},{"itemCode":"Makhana_7-2596","itemName":"Roasted & Flavored Makhana - Tangy Tomato Farmley Jar 90 g - E/US","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":2192.25,"age":6.0,"inhandQty":2.16,"totalSoQty":0,"uniqueDays":0,"avgDailyDemand":0,"fgDoh":null,"status":"Dead Stock","hasRecentDemand":false},{"itemCode":"Makhana_7-2597","itemName":"Roasted & Flavored Makhana - Peri-Peri Farmley Jar 90 g - E/US","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":2207.44,"age":6.0,"inhandQty":2.16,"totalSoQty":21.6,"uniqueDays":1,"avgDailyDemand":21.6,"fgDoh":0.1,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-2598","itemName":"Roasted & Flavored Makhana -Cream and Onion Farmley Jar 90 g - E/US","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":2185.99,"age":6.0,"inhandQty":2.16,"totalSoQty":25.92,"uniqueDays":1,"avgDailyDemand":25.92,"fgDoh":0.08,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-2599","itemName":"Roasted & Flavored Makhana - Mint Farmley Jar 90 g - E/US","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":11170.3,"age":6.0,"inhandQty":10.8,"totalSoQty":0,"uniqueDays":0,"avgDailyDemand":0,"fgDoh":null,"status":"Dead Stock","hasRecentDemand":false},{"itemCode":"Makhana_7-2661","itemName":"Andhra Masala Munchies Farmley Pillow Pouch 33 g","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":2375.43,"age":7.52,"inhandQty":10.72,"totalSoQty":30.39,"uniqueDays":3,"avgDailyDemand":10.13,"fgDoh":1.06,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-2663","itemName":"Amritsari Achari Munchies Farmley Pillow Pouch 33 g","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":56276.46,"age":7.0,"inhandQty":256.08,"totalSoQty":5.28,"uniqueDays":1,"avgDailyDemand":5.28,"fgDoh":48.5,"status":"Overstocked","hasRecentDemand":true},{"itemCode":"Makhana_7-2663","itemName":"Amritsari Achari Munchies Farmley Pillow Pouch 33 g","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":56276.46,"age":7.0,"inhandQty":256.08,"totalSoQty":1320.0,"uniqueDays":20,"avgDailyDemand":66.0,"fgDoh":3.88,"status":"Low","hasRecentDemand":true},{"itemCode":"Makhana_7-2755","itemName":"Roasted & Flavored Makhana - Achaari Farmley Standee Pouch 180 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":1308.62,"age":14.0,"inhandQty":1.44,"totalSoQty":1.44,"uniqueDays":1,"avgDailyDemand":1.44,"fgDoh":1.0,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-2756","itemName":"Roasted & Flavored Makhana - Minty Pudina Farmley Standee Pouch 180 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":1327.34,"age":16.0,"inhandQty":1.44,"totalSoQty":1.44,"uniqueDays":1,"avgDailyDemand":1.44,"fgDoh":1.0,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-2768","itemName":"Prasadam Makhana Farmley Center Seal Pouch 200g E/US","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":198452.16,"age":10.0,"inhandQty":184.8,"totalSoQty":0,"uniqueDays":0,"avgDailyDemand":0,"fgDoh":null,"status":"Dead Stock","hasRecentDemand":false},{"itemCode":"Makhana_7-2979","itemName":"Roasted & Flavored Makhana -Cheddar Cheese Farmley Composite Jar 77 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":1075537.78,"age":2.74,"inhandQty":997.92,"totalSoQty":2445.52,"uniqueDays":23,"avgDailyDemand":106.33,"fgDoh":9.39,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-2980","itemName":"Roasted & Flavored Makhana - Mint Farmley Composite Jar 77 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":622373.6,"age":2.68,"inhandQty":565.49,"totalSoQty":2574.88,"uniqueDays":23,"avgDailyDemand":111.95,"fgDoh":5.05,"status":"Low","hasRecentDemand":true},{"itemCode":"Makhana_7-2981","itemName":"Roasted & Flavored Makhana - Black Pepper Farmley Composite jar 77 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":282336.38,"age":7.11,"inhandQty":251.33,"totalSoQty":750.6,"uniqueDays":23,"avgDailyDemand":32.63,"fgDoh":7.7,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-2982","itemName":"Roasted & Flavored Makhana - Achaari Farmley Composite Jar 77 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":42861.47,"age":4.76,"inhandQty":38.81,"totalSoQty":423.5,"uniqueDays":21,"avgDailyDemand":20.17,"fgDoh":1.92,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-2983","itemName":"Roasted & Flavored Makhana - Peri Peri Farmley Composite Jar 77 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":2633390.62,"age":6.17,"inhandQty":2431.97,"totalSoQty":5662.35,"uniqueDays":23,"avgDailyDemand":246.19,"fgDoh":9.88,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-2984","itemName":"Roasted & Salted Makhana Farmley Composite Jar 77 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":6047160.68,"age":10.52,"inhandQty":5257.56,"totalSoQty":11229.91,"uniqueDays":24,"avgDailyDemand":467.91,"fgDoh":11.24,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-2985","itemName":"Roasted & Flavored Makhana - Tangy Tomato Farmley Composite Jar 77 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":787848.11,"age":6.68,"inhandQty":733.66,"totalSoQty":1437.13,"uniqueDays":23,"avgDailyDemand":62.48,"fgDoh":11.74,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-2986","itemName":"Roasted & Flavored Makhana -Cream and Onion Farmley Composite Jar 77 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":4050557.15,"age":7.55,"inhandQty":3773.62,"totalSoQty":6351.81,"uniqueDays":23,"avgDailyDemand":276.17,"fgDoh":13.66,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-2986","itemName":"Roasted & Flavored Makhana -Cream and Onion Farmley Composite Jar 77 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":4050557.15,"age":7.55,"inhandQty":3773.62,"totalSoQty":59.14,"uniqueDays":9,"avgDailyDemand":6.57,"fgDoh":574.31,"status":"Overstocked","hasRecentDemand":true},{"itemCode":"Makhana_7-2992","itemName":"Roasted & Flavoured Peri Peri Makhana Farmley Jar 55 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":1203465.13,"age":7.97,"inhandQty":1047.2,"totalSoQty":1795.97,"uniqueDays":23,"avgDailyDemand":78.09,"fgDoh":13.41,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-2993","itemName":"Roasted & Flavoured Minty Pudina Makhana Farmley Jar 55 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":418543.19,"age":16.91,"inhandQty":359.98,"totalSoQty":364.6,"uniqueDays":21,"avgDailyDemand":17.36,"fgDoh":20.73,"status":"Healthy","hasRecentDemand":true},{"itemCode":"Makhana_7-2994","itemName":"Roasted & Salted Makhana Farmley Jar 55 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":2290458.31,"age":15.49,"inhandQty":1884.58,"totalSoQty":1591.64,"uniqueDays":23,"avgDailyDemand":69.2,"fgDoh":27.23,"status":"Healthy","hasRecentDemand":true},{"itemCode":"Makhana_7-2995","itemName":"Roasted & Flavoured Cream & Onion Makhana Farmley Jar 55 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":906202.81,"age":9.57,"inhandQty":795.02,"totalSoQty":1628.5,"uniqueDays":23,"avgDailyDemand":70.8,"fgDoh":11.23,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-2996","itemName":"Roasted & Flavoured Tangy Tomato Makhana Farmley Jar 55 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":484058.26,"age":4.92,"inhandQty":427.35,"totalSoQty":651.2,"uniqueDays":23,"avgDailyDemand":28.31,"fgDoh":15.09,"status":"Healthy","hasRecentDemand":true},{"itemCode":"Makhana_7-2997","itemName":"Roasted & Flavoured Achaari Makhana Farmley Jar 55 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":323195.11,"age":14.0,"inhandQty":277.2,"totalSoQty":552.14,"uniqueDays":23,"avgDailyDemand":24.01,"fgDoh":11.55,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-2998","itemName":"Roasted & Flavoured Cheddar Cheese Makhana Farmley Jar 55 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":788188.11,"age":7.55,"inhandQty":689.15,"totalSoQty":1162.98,"uniqueDays":23,"avgDailyDemand":50.56,"fgDoh":13.63,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-2999","itemName":"Roasted & Flavoured Salt & Pepper Makhana Farmley Jar 55 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":582564.69,"age":10.49,"inhandQty":483.18,"totalSoQty":541.2,"uniqueDays":23,"avgDailyDemand":23.53,"fgDoh":20.53,"status":"Healthy","hasRecentDemand":true},{"itemCode":"Makhana_7-30042","itemName":"Prasadam Makhana Farmley Center Seal Pouch 250g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":942586.8,"age":8.88,"inhandQty":936.0,"totalSoQty":608.0,"uniqueDays":8,"avgDailyDemand":76.0,"fgDoh":12.32,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-30049","itemName":"Korean hot & spicy Munchies Farmley Pillow Pouch 33g","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":69529.19,"age":4.0,"inhandQty":307.45,"totalSoQty":1422.96,"uniqueDays":19,"avgDailyDemand":74.89,"fgDoh":4.11,"status":"Low","hasRecentDemand":true},{"itemCode":"Makhana_7-30073","itemName":"Roasted & Flavored Makhana - Peri Peri Farmley Pillow Pouch 14 g-Ladi","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":224897.93,"age":10.87,"inhandQty":213.36,"totalSoQty":87.61,"uniqueDays":8,"avgDailyDemand":10.95,"fgDoh":19.48,"status":"Healthy","hasRecentDemand":true},{"itemCode":"Makhana_7-30073","itemName":"Roasted & Flavored Makhana - Peri Peri Farmley Pillow Pouch 14 g-Ladi","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":224897.93,"age":10.87,"inhandQty":213.36,"totalSoQty":212.52,"uniqueDays":18,"avgDailyDemand":11.81,"fgDoh":18.07,"status":"Healthy","hasRecentDemand":true},{"itemCode":"Makhana_7-30074","itemName":"Roasted & Flavoured Makhana - Cream & Onion Farmley Pillow Pouch 14g-Ladi","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":68774.65,"age":12.0,"inhandQty":65.52,"totalSoQty":383.29,"uniqueDays":19,"avgDailyDemand":20.17,"fgDoh":3.25,"status":"Low","hasRecentDemand":true},{"itemCode":"Makhana_7-30075","itemName":"Roasted & Flavoured Makhana - Tangy Tomato Farmley Pillow Pouch 14g-Ladi","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":17597.01,"age":21.71,"inhandQty":16.8,"totalSoQty":200.59,"uniqueDays":19,"avgDailyDemand":10.56,"fgDoh":1.59,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-30079","itemName":"Roasted & Flavoured Makhana - Achaari Farmley Pillow Pouch 14g-Ladi","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":106678.51,"age":13.0,"inhandQty":100.8,"totalSoQty":188.41,"uniqueDays":19,"avgDailyDemand":9.92,"fgDoh":10.16,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-30096","itemName":"Prasadam Makhana Center Seal Pouch 100 g- NEW","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":461206.77,"age":0.75,"inhandQty":480.0,"totalSoQty":7461.7,"uniqueDays":22,"avgDailyDemand":339.17,"fgDoh":1.42,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-30097","itemName":"Prasadam Makhana Farmley Center Seal Pouch 60g-New","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":280855.72,"age":15.53,"inhandQty":270.0,"totalSoQty":243.0,"uniqueDays":7,"avgDailyDemand":34.71,"fgDoh":7.78,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-30097","itemName":"Prasadam Makhana Farmley Center Seal Pouch 60g-New","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":280855.72,"age":15.53,"inhandQty":270.0,"totalSoQty":414.0,"uniqueDays":16,"avgDailyDemand":25.88,"fgDoh":10.43,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-30098","itemName":"Prasadam Makhana Center Seal Pouch 200 g- NEW","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":2868910.75,"age":2.74,"inhandQty":2912.0,"totalSoQty":16259.2,"uniqueDays":22,"avgDailyDemand":739.05,"fgDoh":3.94,"status":"Low","hasRecentDemand":true},{"itemCode":"Makhana_7-30127","itemName":"Andhra Masala Farmley Pillow Pouch 25g- Ladi","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":282796.71,"age":21.81,"inhandQty":1075.76,"totalSoQty":174.0,"uniqueDays":12,"avgDailyDemand":14.5,"fgDoh":74.19,"status":"Overstocked","hasRecentDemand":true},{"itemCode":"Makhana_7-30128","itemName":"Amritsari Achaari Farmley Pillow Pouch 25g- Ladi","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":86407.74,"age":58.0,"inhandQty":310.15,"totalSoQty":108.0,"uniqueDays":11,"avgDailyDemand":9.82,"fgDoh":31.59,"status":"Overstocked","hasRecentDemand":true},{"itemCode":"Makhana_7-30129","itemName":"Spanish Tomato Munchies Farmley Pillow Pouch 25g-Ladi","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":395.88,"age":68.0,"inhandQty":1.45,"totalSoQty":0,"uniqueDays":0,"avgDailyDemand":0,"fgDoh":null,"status":"Dead Stock","hasRecentDemand":false},{"itemCode":"Makhana_7-30130","itemName":"Korean Hot & Spicy Munchies Farmley Pillow Pouch 25g- Ladi","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":8495.48,"age":67.0,"inhandQty":30.1,"totalSoQty":0,"uniqueDays":0,"avgDailyDemand":0,"fgDoh":null,"status":"Dead Stock","hasRecentDemand":false},{"itemCode":"Makhana_7-30135","itemName":"Roasted & Flavoured Makhana - Lemon Chilli Farmley Composite Jar 55g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":184221.18,"age":3.0,"inhandQty":161.7,"totalSoQty":321.48,"uniqueDays":20,"avgDailyDemand":16.07,"fgDoh":10.06,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-30136","itemName":"Roasted & Flavoured Makhana - Lemon Chilli Farmley Composite Jar 77 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":94812.9,"age":26.39,"inhandQty":86.86,"totalSoQty":334.95,"uniqueDays":18,"avgDailyDemand":18.61,"fgDoh":4.67,"status":"Low","hasRecentDemand":true},{"itemCode":"Makhana_7-30137","itemName":"Makha Shaka Imli Waves Farmley Pillow Pouch 70 g","origin":"Rebela","itemGroup":"Munchies","warehouse":"RPC Functional & Innovative Foods Finished Goods - CBSPL","value":131033.28,"age":6.48,"inhandQty":621.6,"totalSoQty":1149.05,"uniqueDays":16,"avgDailyDemand":71.82,"fgDoh":8.66,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-30138","itemName":"Makha Shaka Cheese Waves Farmley Pillow Pouch 70 g","origin":"Rebela","itemGroup":"Munchies","warehouse":"RPC Functional & Innovative Foods Finished Goods - CBSPL","value":136579.52,"age":8.97,"inhandQty":644.0,"totalSoQty":1121.05,"uniqueDays":16,"avgDailyDemand":70.07,"fgDoh":9.19,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-30140","itemName":"Prasadam Makhana Farmley Center Seal Pouch 180 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":66577.46,"age":15.0,"inhandQty":64.8,"totalSoQty":928.8,"uniqueDays":3,"avgDailyDemand":309.6,"fgDoh":0.21,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-30146","itemName":"Roasted & Flavored Makhana- Cheesy cheddar 20g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":142125.67,"age":30.0,"inhandQty":142.8,"totalSoQty":117.5,"uniqueDays":11,"avgDailyDemand":10.68,"fgDoh":13.37,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-30147","itemName":"Roasted & Flavored Makhana-Lemon Chilli 20g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":194315.63,"age":2.3,"inhandQty":198.0,"totalSoQty":323.9,"uniqueDays":11,"avgDailyDemand":29.45,"fgDoh":6.72,"status":"Low","hasRecentDemand":true},{"itemCode":"Makhana_7-30149","itemName":"Roasted & Flavored Makhana-Minty Pudina 20g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":162824.99,"age":12.0,"inhandQty":162.0,"totalSoQty":327.5,"uniqueDays":12,"avgDailyDemand":27.29,"fgDoh":5.94,"status":"Low","hasRecentDemand":true},{"itemCode":"Makhana_7-30151","itemName":"Roasted & Flavored Makhana - Tangy Tomato Farmley Pillow Pouch 20 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":165319.4,"age":0.0,"inhandQty":172.8,"totalSoQty":2202.72,"uniqueDays":23,"avgDailyDemand":95.77,"fgDoh":1.8,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-30152","itemName":"Roasted & Flavored Makhana - Cream & Onion Farmley Pillow Pouch 20 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":210213.48,"age":1.0,"inhandQty":218.4,"totalSoQty":7834.92,"uniqueDays":23,"avgDailyDemand":340.65,"fgDoh":0.64,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-30153","itemName":"Roasted & Flavored Makhana - Peri Peri Farmley Pillow Pouch 20 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":68996.79,"age":3.0,"inhandQty":73.2,"totalSoQty":7931.4,"uniqueDays":23,"avgDailyDemand":344.84,"fgDoh":0.21,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-30154","itemName":"Roasted & Flavored Makhana - Achaari Farmley Pillow Pouch 20 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":89449.46,"age":11.0,"inhandQty":91.2,"totalSoQty":82.2,"uniqueDays":8,"avgDailyDemand":10.28,"fgDoh":8.88,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-30155","itemName":"Roasted & Salted Makhana Farmley Pillow Pouch 20 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":223357.01,"age":4.0,"inhandQty":218.4,"totalSoQty":2267.52,"uniqueDays":23,"avgDailyDemand":98.59,"fgDoh":2.22,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-30156","itemName":"Roasted & Flavoured Makhana - Cheese & Herbs Farmley Jar, 332 g - Pack of 4 (83g each)","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":914047.04,"age":136.22,"inhandQty":703.18,"totalSoQty":0,"uniqueDays":0,"avgDailyDemand":0,"fgDoh":null,"status":"Dead Stock","hasRecentDemand":false},{"itemCode":"Makhana_7-30157","itemName":"Makha Shaka Masala Stix Farmley Pillow Pouch 33 g","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":5621.54,"age":0.0,"inhandQty":21.9,"totalSoQty":9087.0,"uniqueDays":23,"avgDailyDemand":395.09,"fgDoh":0.06,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-30158","itemName":"Makha Shaka Flaming Hot Stix Farmley Pillow Pouch 33g","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":33983.22,"age":20.0,"inhandQty":129.39,"totalSoQty":1088.08,"uniqueDays":22,"avgDailyDemand":49.46,"fgDoh":2.62,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-30159","itemName":"Makha Shaka Achari Stix Farmley Pillow Pouch 33 g","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":101604.44,"age":2.0,"inhandQty":462.75,"totalSoQty":2048.97,"uniqueDays":23,"avgDailyDemand":89.09,"fgDoh":5.19,"status":"Low","hasRecentDemand":true},{"itemCode":"Makhana_7-30160","itemName":"Makha Shaka Tomato Stix Farmley Pillow Pouch 33 g","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":44258.28,"age":2.63,"inhandQty":203.41,"totalSoQty":2584.76,"uniqueDays":23,"avgDailyDemand":112.38,"fgDoh":1.81,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-30161","itemName":"Roasted & Flavoured Makhana - Cheddar Cheese Farmley Composite Jar 83 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":199410.39,"age":12.4,"inhandQty":185.26,"totalSoQty":59.76,"uniqueDays":11,"avgDailyDemand":5.43,"fgDoh":34.1,"status":"Overstocked","hasRecentDemand":true},{"itemCode":"Makhana_7-30163","itemName":"Roasted & Flavored Makhana - Tangy Tomato Farmley Composite Jar 83 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":339991.94,"age":20.21,"inhandQty":322.7,"totalSoQty":127.82,"uniqueDays":10,"avgDailyDemand":12.78,"fgDoh":25.25,"status":"Healthy","hasRecentDemand":true},{"itemCode":"Makhana_7-30164","itemName":"Roasted & Flavored Makhana - Peri Peri Farmley Composite Jar 83 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":112118.07,"age":5.13,"inhandQty":105.58,"totalSoQty":127.49,"uniqueDays":17,"avgDailyDemand":7.5,"fgDoh":14.08,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-30165","itemName":"Roasted & Flavored Makhana - Cream N Onion Farmley Composite Jar 83 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":112870.03,"age":12.68,"inhandQty":105.58,"totalSoQty":105.58,"uniqueDays":14,"avgDailyDemand":7.54,"fgDoh":14.0,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-30166","itemName":"Roasted & Flavored Makhana - Mint Farmley Composite  Jar 83 g","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":113010.63,"age":17.42,"inhandQty":103.58,"totalSoQty":145.75,"uniqueDays":14,"avgDailyDemand":10.41,"fgDoh":9.95,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-30167","itemName":"Roasted & Salted Makhana Farmley Composite Jar 83 g\t","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":240459.27,"age":29.36,"inhandQty":215.14,"totalSoQty":167.66,"uniqueDays":11,"avgDailyDemand":15.24,"fgDoh":14.11,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-30169","itemName":"Makha Shaka Imli Waves Farmley Pillow Pouch 25g- Ladi","origin":"Rebela","itemGroup":"Munchies","warehouse":"RPC Functional & Innovative Foods Finished Goods - CBSPL","value":139927.92,"age":2.0,"inhandQty":440.48,"totalSoQty":1021.75,"uniqueDays":8,"avgDailyDemand":127.72,"fgDoh":3.45,"status":"Low","hasRecentDemand":true},{"itemCode":"Makhana_7-30170","itemName":"Makha Shaka Cheese Waves Farmley Pillow Pouch 25 g- Ladi","origin":"Rebela","itemGroup":"Munchies","warehouse":"RPC Functional & Innovative Foods Finished Goods - CBSPL","value":370535.48,"age":3.7,"inhandQty":1357.35,"totalSoQty":1067.2,"uniqueDays":10,"avgDailyDemand":106.72,"fgDoh":12.72,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-30171","itemName":"Makha Shaka Flaming Hot Stix Farmley Pillow Pouch 25g- Ladi","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":18236.84,"age":17.0,"inhandQty":64.33,"totalSoQty":810.0,"uniqueDays":22,"avgDailyDemand":36.82,"fgDoh":1.75,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-30171","itemName":"Makha Shaka Flaming Hot Stix Farmley Pillow Pouch 25g- Ladi","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":18236.84,"age":17.0,"inhandQty":64.33,"totalSoQty":96.55,"uniqueDays":4,"avgDailyDemand":24.14,"fgDoh":2.66,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-30172","itemName":"Makha Shaka Tomato Stix Farmley Pillow Pouch 25g- Ladi","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":27525.87,"age":2.86,"inhandQty":116.08,"totalSoQty":801.0,"uniqueDays":21,"avgDailyDemand":38.14,"fgDoh":3.04,"status":"Low","hasRecentDemand":true},{"itemCode":"Makhana_7-30172","itemName":"Makha Shaka Tomato Stix Farmley Pillow Pouch 25g- Ladi","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":27525.87,"age":2.86,"inhandQty":116.08,"totalSoQty":103.05,"uniqueDays":4,"avgDailyDemand":25.76,"fgDoh":4.51,"status":"Low","hasRecentDemand":true},{"itemCode":"Makhana_7-30173","itemName":"Makha Shaka Masala Stix Farmley Pillow Pouch 25g- Ladi","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":113974.32,"age":3.64,"inhandQty":473.82,"totalSoQty":675.0,"uniqueDays":16,"avgDailyDemand":42.19,"fgDoh":11.23,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-30173","itemName":"Makha Shaka Masala Stix Farmley Pillow Pouch 25g- Ladi","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":113974.32,"age":3.64,"inhandQty":473.82,"totalSoQty":105.55,"uniqueDays":6,"avgDailyDemand":17.59,"fgDoh":26.93,"status":"Healthy","hasRecentDemand":true},{"itemCode":"Makhana_7-30174","itemName":"Makha Shaka Aachari Stix Farmley Pillow Pouch 25g- Ladi","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":67160.43,"age":17.0,"inhandQty":241.07,"totalSoQty":699.0,"uniqueDays":16,"avgDailyDemand":43.69,"fgDoh":5.52,"status":"Low","hasRecentDemand":true},{"itemCode":"Makhana_7-30174","itemName":"Makha Shaka Aachari Stix Farmley Pillow Pouch 25g- Ladi","origin":"UD Foods","itemGroup":"Munchies","warehouse":"RPC UD Foods Finished Goods - CBSPL","value":67160.43,"age":17.0,"inhandQty":241.07,"totalSoQty":81.55,"uniqueDays":5,"avgDailyDemand":16.31,"fgDoh":14.78,"status":"Watch","hasRecentDemand":true},{"itemCode":"Makhana_7-30175","itemName":"Roasted & Flavoured Cheddar Cheese Makhana Farmley Jar 54g Institutional pack","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":395897.66,"age":24.84,"inhandQty":332.64,"totalSoQty":482.1,"uniqueDays":9,"avgDailyDemand":53.57,"fgDoh":6.21,"status":"Low","hasRecentDemand":true},{"itemCode":"Makhana_7-30176","itemName":"4.5+ Suta Makhana PP Bag 10 kg","origin":"Purnea","itemGroup":"Makhana","warehouse":"CMC Purnia New - Finished Goods Stores - CBSPL","value":6272634.17,"age":2.49,"inhandQty":6517.1,"totalSoQty":0,"uniqueDays":0,"avgDailyDemand":0,"fgDoh":null,"status":"Dead Stock","hasRecentDemand":false},{"itemCode":"Makhana_7-30179","itemName":"4-4.5 Suta FG Makhana- FG item","origin":"Purnea","itemGroup":"Makhana","warehouse":"CMC Purnia New - Finished Goods Stores - CBSPL","value":30764.23,"age":1.0,"inhandQty":73.8,"totalSoQty":0,"uniqueDays":0,"avgDailyDemand":0,"fgDoh":null,"status":"Dead Stock","hasRecentDemand":false},{"itemCode":"Makhana_7-30181","itemName":"4.5+ Suta FG Makhana PP Bag 10 kg - FG Item","origin":"Purnea","itemGroup":"Makhana","warehouse":"CMC Purnia New - Finished Goods Stores - CBSPL","value":1007368.25,"age":0.0,"inhandQty":1032.87,"totalSoQty":0,"uniqueDays":0,"avgDailyDemand":0,"fgDoh":null,"status":"Dead Stock","hasRecentDemand":false},{"itemCode":"Makhana_7-3069","itemName":"Roasted & Salted Makhana Farmley Composite Jar 57 g-Institutional","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":18255.22,"age":18.0,"inhandQty":13.96,"totalSoQty":55.86,"uniqueDays":9,"avgDailyDemand":6.21,"fgDoh":2.25,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-3071","itemName":"Roasted & Flavoured Makhana - Cream & Onion Farmley Composite Jar 57 g-Institutional","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":4621.55,"age":21.0,"inhandQty":3.99,"totalSoQty":37.91,"uniqueDays":8,"avgDailyDemand":4.74,"fgDoh":0.84,"status":"Critical","hasRecentDemand":true},{"itemCode":"Makhana_7-3072","itemName":"Roasted & Flavoured Makhana - Tangy Tomato Farmley Composite Jar 57 g-Institutional","origin":"Purnea","itemGroup":"Makhana","warehouse":"RPC Purnia Finished Goods - CBSPL","value":2183.66,"age":82.0,"inhandQty":2.0,"totalSoQty":31.92,"uniqueDays":6,"avgDailyDemand":5.32,"fgDoh":0.38,"status":"Critical","hasRecentDemand":true},{"itemCode":"Pistachio_8-1731","itemName":"Premium California Roasted & Salted Pistachios Farmley Standee Pouch 200 g","origin":"Indore","itemGroup":"Pistachio","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":1126162.05,"age":31.36,"inhandQty":1242.0,"totalSoQty":4315.4,"uniqueDays":24,"avgDailyDemand":179.81,"fgDoh":6.91,"status":"Low","hasRecentDemand":true},{"itemCode":"Pistachio_8-2936","itemName":"Premium California Roasted & Salted Pistachios Farmley Standee Pouch 35 g","origin":"Indore","itemGroup":"Pistachio","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":27381.99,"age":29.82,"inhandQty":26.95,"totalSoQty":12.25,"uniqueDays":4,"avgDailyDemand":3.06,"fgDoh":8.8,"status":"Watch","hasRecentDemand":true},{"itemCode":"Pistachio_8-3057","itemName":"Farmley Premium California Roasted & Salted Pistachios standee pouch 250 gm\t","origin":"Indore","itemGroup":"Pistachio","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":232322.36,"age":22.0,"inhandQty":232.5,"totalSoQty":0,"uniqueDays":0,"avgDailyDemand":0,"fgDoh":null,"status":"Dead Stock","hasRecentDemand":false},{"itemCode":"Raisins_10-1989","itemName":"Premium Raisin Long Farmley Standee Pouch 1 kg","origin":"Indore","itemGroup":"Raisins","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":420589.93,"age":13.0,"inhandQty":1168.0,"totalSoQty":8.0,"uniqueDays":1,"avgDailyDemand":8.0,"fgDoh":146.0,"status":"Overstocked","hasRecentDemand":true},{"itemCode":"Raisins_10-1989","itemName":"Premium Raisin Long Farmley Standee Pouch 1 kg","origin":"Indore","itemGroup":"Raisins","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":420589.93,"age":13.0,"inhandQty":1168.0,"totalSoQty":1232.0,"uniqueDays":12,"avgDailyDemand":102.67,"fgDoh":11.38,"status":"Watch","hasRecentDemand":true},{"itemCode":"Seeds_11-20155","itemName":"Premium Watermelon Seeds Farmley Standee Pouch 100 gms","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":173587.81,"age":4.0,"inhandQty":280.0,"totalSoQty":2520.0,"uniqueDays":23,"avgDailyDemand":109.57,"fgDoh":2.56,"status":"Critical","hasRecentDemand":true},{"itemCode":"Seeds_11-20160","itemName":"Roasted & Salted Pumpkin seeds Pillow Pouch Farmley 24 g- single serve","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":18412.46,"age":0.15,"inhandQty":37.44,"totalSoQty":521.64,"uniqueDays":19,"avgDailyDemand":27.45,"fgDoh":1.36,"status":"Critical","hasRecentDemand":true},{"itemCode":"Seeds_11-20162","itemName":"Sunflower seeds Farmley Standee Pouch 250 g","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":165974.67,"age":14.0,"inhandQty":937.5,"totalSoQty":3570.0,"uniqueDays":19,"avgDailyDemand":187.89,"fgDoh":4.99,"status":"Low","hasRecentDemand":true},{"itemCode":"Seeds_11-20163","itemName":"Pumpkin seeds Farmley Standee Pouch 250 g","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":263330.67,"age":17.0,"inhandQty":675.0,"totalSoQty":6037.5,"uniqueDays":19,"avgDailyDemand":317.76,"fgDoh":2.12,"status":"Critical","hasRecentDemand":true},{"itemCode":"Seeds_11-2541","itemName":"Premium Chia Seeds Farmley Standee Pouch 200 g","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":108985.09,"age":2.06,"inhandQty":2214.0,"totalSoQty":30887.8,"uniqueDays":26,"avgDailyDemand":1187.99,"fgDoh":1.86,"status":"Critical","hasRecentDemand":true},{"itemCode":"Seeds_11-2542","itemName":"Premium Jumbo Pumpkin Seeds Farmley Standee Pouch 200 g","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":490598.18,"age":2.0,"inhandQty":1608.0,"totalSoQty":16099.4,"uniqueDays":26,"avgDailyDemand":619.21,"fgDoh":2.6,"status":"Critical","hasRecentDemand":true},{"itemCode":"Seeds_11-2549","itemName":"Premium Sunflower Seeds Farmley Standee Pouch 200 g","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":541910.78,"age":4.23,"inhandQty":3234.0,"totalSoQty":7335.4,"uniqueDays":26,"avgDailyDemand":282.13,"fgDoh":11.46,"status":"Watch","hasRecentDemand":true},{"itemCode":"Seeds_11-2550","itemName":"Premium Flax Seeds Farmley Standee Pouch 200 g","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":144196.99,"age":4.0,"inhandQty":1416.0,"totalSoQty":10113.4,"uniqueDays":23,"avgDailyDemand":439.71,"fgDoh":3.22,"status":"Low","hasRecentDemand":true},{"itemCode":"Seeds_11-2675","itemName":"Farmley Seeds Combo - Chia Seeds, Flax Seeds, Pumpkin Seeds, Sunflower Seeds Farmley Standee Pouch 800 g (200 g Each)","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":83990.18,"age":3.0,"inhandQty":569.6,"totalSoQty":9576.0,"uniqueDays":26,"avgDailyDemand":368.31,"fgDoh":1.55,"status":"Critical","hasRecentDemand":true},{"itemCode":"Seeds_11-2688","itemName":"Premium Chia Seeds Farmley Standee pouch 400 g - Pack of 2 (200g each)","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":58135.86,"age":2.0,"inhandQty":252.0,"totalSoQty":960.8,"uniqueDays":19,"avgDailyDemand":50.57,"fgDoh":4.98,"status":"Low","hasRecentDemand":true},{"itemCode":"Seeds_11-2693","itemName":"Premium Chia Seeds Farmley Jar 1 Kg","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":67123.02,"age":2.0,"inhandQty":420.0,"totalSoQty":9807.0,"uniqueDays":25,"avgDailyDemand":392.28,"fgDoh":1.07,"status":"Critical","hasRecentDemand":true},{"itemCode":"Seeds_11-2840","itemName":"Chia Seeds Farmley Jar 325g - E/US","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":20889.99,"age":1.0,"inhandQty":93.6,"totalSoQty":187.2,"uniqueDays":2,"avgDailyDemand":93.6,"fgDoh":1.0,"status":"Critical","hasRecentDemand":true},{"itemCode":"Seeds_11-2843","itemName":"Pumpkin Seeds Farmley Jar 325g - E/US","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":39175.84,"age":1.0,"inhandQty":93.6,"totalSoQty":187.2,"uniqueDays":2,"avgDailyDemand":93.6,"fgDoh":1.0,"status":"Critical","hasRecentDemand":true},{"itemCode":"Seeds_11-2845","itemName":"Chia Seeds Farmley Jar 1kg -E/US","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":74324.25,"age":1.0,"inhandQty":348.0,"totalSoQty":696.0,"uniqueDays":2,"avgDailyDemand":348.0,"fgDoh":1.0,"status":"Critical","hasRecentDemand":true},{"itemCode":"Seeds_11-2867","itemName":"Quinoa seeds Farmley Jar 1kg","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":16163.81,"age":0.29,"inhandQty":792.0,"totalSoQty":14292.0,"uniqueDays":23,"avgDailyDemand":621.39,"fgDoh":1.27,"status":"Critical","hasRecentDemand":true},{"itemCode":"Seeds_11-2868","itemName":"Quinoa seeds Farmley Standee Pouch 500g","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":9388.58,"age":6.0,"inhandQty":261.0,"totalSoQty":13392.0,"uniqueDays":23,"avgDailyDemand":582.26,"fgDoh":0.45,"status":"Critical","hasRecentDemand":true},{"itemCode":"Seeds_11-2932","itemName":"Basil Seeds Farmley Standee pouch 300g","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":133174.23,"age":5.0,"inhandQty":1197.0,"totalSoQty":13977.0,"uniqueDays":23,"avgDailyDemand":607.7,"fgDoh":1.97,"status":"Critical","hasRecentDemand":true},{"itemCode":"Seeds_11-2939","itemName":"Roasted Flax Seeds Farmley Standee Pouch 150g","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":4499.13,"age":16.0,"inhandQty":31.5,"totalSoQty":31.5,"uniqueDays":3,"avgDailyDemand":10.5,"fgDoh":3.0,"status":"Critical","hasRecentDemand":true},{"itemCode":"Seeds_11-2953","itemName":"Watermelon Seeds Farmley Standee Pouch 500g","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":152927.82,"age":7.0,"inhandQty":296.0,"totalSoQty":948.5,"uniqueDays":21,"avgDailyDemand":45.17,"fgDoh":6.55,"status":"Low","hasRecentDemand":true},{"itemCode":"Seeds_11-2954","itemName":"Chia Seed Farmley Standee Pouch 500g","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":204099.55,"age":1.0,"inhandQty":936.0,"totalSoQty":4608.0,"uniqueDays":19,"avgDailyDemand":242.53,"fgDoh":3.86,"status":"Low","hasRecentDemand":true},{"itemCode":"Seeds_11-3003","itemName":"Farmley Seed combo-Sunflower Seeds, Pumpkin Seeds Farmley Standee Pouch 400g (Pack of 2, 200g each)","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":103500.73,"age":2.0,"inhandQty":336.0,"totalSoQty":2281.2,"uniqueDays":19,"avgDailyDemand":120.06,"fgDoh":2.8,"status":"Critical","hasRecentDemand":true},{"itemCode":"Seeds_11-30142","itemName":"Salted Pumpkin Seeds Pillow Pouch Farmley 24g-Ladi","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":26686.39,"age":2.0,"inhandQty":54.72,"totalSoQty":0.12,"uniqueDays":3,"avgDailyDemand":0.04,"fgDoh":1368.0,"status":"Overstocked","hasRecentDemand":true},{"itemCode":"Seeds_11-30142","itemName":"Salted Pumpkin Seeds Pillow Pouch Farmley 24g-Ladi","origin":"Indore","itemGroup":"Seeds","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":26686.39,"age":2.0,"inhandQty":54.72,"totalSoQty":115.2,"uniqueDays":15,"avgDailyDemand":7.68,"fgDoh":7.12,"status":"Watch","hasRecentDemand":true},{"itemCode":"Walnut_12-1535","itemName":"Premium Broken Walnut Kernels Farmley Standee Pouch 200 g","origin":"Indore","itemGroup":"Walnut","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":-36844.17,"age":1.0,"inhandQty":220.8,"totalSoQty":3976.6,"uniqueDays":26,"avgDailyDemand":152.95,"fgDoh":1.44,"status":"Critical","hasRecentDemand":true},{"itemCode":"Walnut_15-2922","itemName":"Premium Broken Walnut Kernels Farmley Standee Pouch 250 g","origin":"Indore","itemGroup":"Walnut","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":391324.36,"age":11.66,"inhandQty":426.0,"totalSoQty":18.0,"uniqueDays":3,"avgDailyDemand":6.0,"fgDoh":71.0,"status":"Overstocked","hasRecentDemand":true},{"itemCode":"Walnut_15-2924","itemName":"Premium Broken Walnut Kernels Farmley Standee Pouch- 100g","origin":"Indore","itemGroup":"Walnut","warehouse":"RPC Indore - Finished Goods Stores - CBSPL","value":43602.44,"age":1.0,"inhandQty":39.6,"totalSoQty":61.2,"uniqueDays":5,"avgDailyDemand":12.24,"fgDoh":3.24,"status":"Low","hasRecentDemand":true}];
+
+let allData = [...EMBEDDED_DATA];
+let filtered = [...allData];
+let sortDir    = 'asc';
+let unitMode   = 'kg'; // 'kg' | 'unit'
+let expandedIdx = null;
+let activeLegend = null;
+let appsScriptUrl = localStorage.getItem('fg_doh_url') || 'https://script.google.com/macros/s/AKfycbwi4EEYNFN1yk7C1GMm0-DkmwmOZwh2YeLSUSv0pPMtW2Dn0Mmv7VOWP-BXEGpkxmexZA/exec'; 
+
+if(appsScriptUrl) document.getElementById('asUrl').value = appsScriptUrl;
+
+function fmt(n, d=1){
+  if(n==null||n===undefined||isNaN(n)) return '—';
+  return Number(n).toLocaleString('en-IN',{maximumFractionDigits:d});
+}
+function fmtCur(n){
+  if(!n) return '—';
+  if(n>=10000000) return '₹'+(n/10000000).toFixed(1)+'Cr';
+  if(n>=100000) return '₹'+(n/100000).toFixed(1)+'L';
+  return '₹'+fmt(n,0);
+}
+function getDohColor(s){
+  return (STATUS_CFG[s]||STATUS_CFG['Dead Stock']).c;
+}
+
+function buildFilters(){
+  const origins = [...new Set(allData.map(r=>r.origin))].sort();
+  const groups  = [...new Set(allData.map(r=>r.itemGroup).filter(Boolean))].sort();
+  const statuses= Object.keys(STATUS_CFG);
+  const oFlt=document.getElementById('originFlt');
+  const gFlt=document.getElementById('groupFlt');
+  const sFlt=document.getElementById('statusFlt');
+  origins.forEach(o=>{const op=document.createElement('option');op.value=o;op.textContent=o;oFlt.appendChild(op)});
+  groups.forEach(g=>{const op=document.createElement('option');op.value=g;op.textContent=g;gFlt.appendChild(op)});
+  statuses.forEach(s=>{const op=document.createElement('option');op.value=s;op.textContent=STATUS_CFG[s].e+' '+s;sFlt.appendChild(op)});
+}
+
+function buildLegend(){
+  const counts={};
+  allData.forEach(r=>{counts[r.status]=(counts[r.status]||0)+1});
+  const leg=document.getElementById('legend');
+  leg.innerHTML='';
+  Object.entries(STATUS_CFG).forEach(([k,v])=>{
+    if(!counts[k]) return;
+    const p=document.createElement('div');
+    p.className='leg-pill'+(activeLegend===k?' active':'');
+    p.style.setProperty('--pill-bg',v.bg);
+    p.style.setProperty('--pill-br',v.br);
+    p.style.setProperty('--pill-c',v.c);
+    p.innerHTML=`${v.e} ${k} <span class="leg-num">${counts[k]}</span>`;
+    p.onclick=()=>{
+      activeLegend = activeLegend===k ? null : k;
+      document.getElementById('statusFlt').value = activeLegend||'';
+      buildLegend();
+      applyFilters();
+    };
+    leg.appendChild(p);
+  });
+}
+
+function buildSummary(){
+  const counts={};
+  allData.forEach(r=>{
+    const s = (unitMode==='unit' && r.statusUnits) ? r.statusUnits : r.status;
+    counts[s]=(counts[s]||0)+1;
+  });
+  const modeLabel = unitMode==='unit' ? 'units' : 'in inhand';
+  const cards=[
+    {l:'Total Items',v:allData.length,s:modeLabel,c:'#dde3ee'},
+    {l:'Critical',v:counts['Critical']||0,s:'DOH ≤3d',c:'#ef4444'},
+    {l:'Stockout',v:counts['Stockout']||0,s:'0 inventory',c:'#dc2626'},
+    {l:'Low',v:counts['Low']||0,s:'DOH 4–7d',c:'#f97316'},
+    {l:'Watch',v:counts['Watch']||0,s:'DOH 8–15d',c:'#eab308'},
+    {l:'Healthy',v:counts['Healthy']||0,s:'DOH 16–30d',c:'#22c55e'},
+    {l:'Overstocked',v:counts['Overstocked']||0,s:'DOH > 30d',c:'#3b82f6'},
+    {l:'No Signal',v:(counts['Dead Stock']||0)+(counts['No Recent Demand']||0),s:'no demand',c:'#4b5563'},
+  ];
+  document.getElementById('summaryStrip').innerHTML=cards.map(c=>`
+    <div class="stat-card">
+      <div class="stat-label">${c.l}</div>
+      <div class="stat-val" style="color:${c.c}">${c.v}</div>
+      <div class="stat-sub">${c.s}</div>
+    </div>`).join('');
+}
+
+function applyFilters(){
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  const origin = document.getElementById('originFlt').value;
+  const group  = document.getElementById('groupFlt').value;
+  const status = document.getElementById('statusFlt').value;
+  activeLegend = status || null;
+  buildLegend();
+
+  filtered = allData.filter(r=>{
+    if(origin && r.origin!==origin) return false;
+    if(group  && r.itemGroup!==group) return false;
+    if(status && r.status!==status) return false;
+    if(q && !r.itemName.toLowerCase().includes(q) &&
+           !r.itemCode.toLowerCase().includes(q) &&
+           !r.itemGroup.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  sortData();
+  expandedIdx = null;
+  renderTable();
+  document.getElementById('countInfo').textContent=`${filtered.length} of ${allData.length} items`;
+}
+
+function sortData(){
+  filtered.sort((a,b)=>{
+    const an=a.fgDoh===null, bn=b.fgDoh===null;
+    if(an&&bn) return 0;
+    if(an) return sortDir==='asc'?1:-1;
+    if(bn) return sortDir==='asc'?-1:1;
+    return sortDir==='asc' ? a.fgDoh-b.fgDoh : b.fgDoh-a.fgDoh;
+  });
+}
+
+function toggleSort(){
+  sortDir = sortDir==='asc' ? 'desc' : 'asc';
+  document.getElementById('sortBtn').textContent = sortDir==='asc' ? '↑ Critical First' : '↓ Healthy First';
+  sortData();
+  expandedIdx=null;
+  renderTable();
+}
+
+function toggleUnit(){
+  unitMode = unitMode==='kg' ? 'unit' : 'kg';
+  const btn = document.getElementById('unitToggle');
+  if(unitMode==='kg'){
+    btn.textContent='📦 KG Mode';
+    btn.className='btn-toggle mode-kg';
+  } else {
+    btn.textContent='🔢 Units Mode';
+    btn.className='btn-toggle mode-unit';
+  }
+  updateTableHeader();
+  updateFooter();
+  buildSummary();
+  expandedIdx=null;
+  renderTable();
+}
+
+function updateTableHeader(){
+  if(unitMode==='kg'){
+    document.getElementById('hdrInhand').textContent='Inhand KG';
+    document.getElementById('hdrDemand').textContent='Avg Demand';
+    document.getElementById('hdrSoQty').textContent='SO KG';
+  } else {
+    document.getElementById('hdrInhand').textContent='Inhand UNT';
+    document.getElementById('hdrDemand').textContent='Avg Demand';
+    document.getElementById('hdrSoQty').textContent='SO UNT';
+  }
+}
+
+function updateFooter(){
+  const note = document.getElementById('footerNote');
+  if(unitMode==='kg'){
+    note.textContent='FG DOH = Inhand KG ÷ (Total SO KG ÷ Unique SO Days) · Perishable shelf life 8 months';
+  } else {
+    note.textContent='FG DOH = Inhand Units ÷ (Total SO Units ÷ Unique SO Days) · Switch to KG Mode for KG-based analysis';
+  }
+}
+
+function effVal(r){
+  // Returns the display-mode-aware fields for a row
+  const useUnit = unitMode==='unit' && r.statusUnits;
+  return {
+    status:    useUnit ? r.statusUnits       : r.status,
+    doh:       useUnit ? r.fgDohUnits        : r.fgDoh,
+    inhand:    useUnit ? r.inhandUnits       : r.inhandQty,
+    demand:    useUnit ? r.avgDailyDemandUnits : r.avgDailyDemand,
+    soQty:     useUnit ? r.totalSoQtyUnits   : r.totalSoQty,
+    unit:      useUnit ? 'UNT' : 'KG'
+  };
+}
+
+function renderTable(){
+  const body = document.getElementById('tableBody');
+  if(!filtered.length){
+    body.innerHTML=`<div class="empty"><div class="empty-icon">🔍</div><div>No items match your filters</div></div>`;
+    return;
+  }
+  const MAX_DOH=45;
+  body.innerHTML = filtered.map((r,i)=>{
+    const ev  = effVal(r);
+    const cfg = STATUS_CFG[ev.status]||STATUS_CFG['Dead Stock'];
+    const pct = ev.doh===null ? 0 : Math.min(ev.doh/MAX_DOH*100,100);
+    const col = cfg.c;
+    const dohLabel = ev.doh===null ? '—' : ev.doh+'d';
+    const expanded = expandedIdx===i;
+
+    const rowHtml=`<div class="tbl-row${expanded?' expanded':''}" 
+      style="--row-accent:${col}" 
+      onclick="toggleExpand(${i})"
+      data-i="${i}">
+      <div>
+        <div class="cell-item-name">${esc(r.itemName)}</div>
+        <div class="cell-item-code">${esc(r.itemCode)}</div>
+        ${r.itemGroup?`<div class="cell-group">${esc(r.itemGroup)}</div>`:''}
+      </div>
+      <div><span class="origin-badge">${esc(r.origin)}</span></div>
+      <div><span class="status-badge" style="background:${cfg.bg};border-color:${cfg.br};color:${col}">${cfg.e} ${ev.status}</span></div>
+      <div class="doh-wrap">
+        <div class="doh-track"><div class="doh-fill" style="width:${pct}%;background:${col}"></div></div>
+        <span class="doh-val" style="color:${col}">${dohLabel}</span>
+      </div>
+      <div class="num num-dim">${fmt(ev.inhand)}</div>
+      <div class="num num-dim">${fmt(ev.demand,2)}<span style="font-size:9px;color:var(--text3)">/${ev.unit}/d</span></div>
+      <div class="num num-dim">${fmt(ev.soQty)}</div>
+      <div class="num num-dim">${r.uniqueDays||'—'}</div>
+      <div class="num num-dim">${fmtCur(r.value)}</div>
+    </div>`;
+
+    const expHtml = expanded ? `<div class="exp-row" style="--row-accent:${col}">
+      <div class="exp-field"><div class="exp-label">FG DOH (${ev.unit})</div><div class="exp-val hi">${ev.doh!==null?ev.doh+' days':'—'}</div></div>
+      <div class="exp-field"><div class="exp-label">Inhand KG</div><div class="exp-val">${fmt(r.inhandQty)}</div></div>
+      <div class="exp-field"><div class="exp-label">Inhand Units</div><div class="exp-val">${r.inhandUnits!=null?fmt(r.inhandUnits):'—'}</div></div>
+      <div class="exp-field"><div class="exp-label">Avg Demand KG/d</div><div class="exp-val">${fmt(r.avgDailyDemand,2)}</div></div>
+      <div class="exp-field"><div class="exp-label">Avg Demand UNT/d</div><div class="exp-val">${r.avgDailyDemandUnits!=null?fmt(r.avgDailyDemandUnits,2):'—'}</div></div>
+      <div class="exp-field"><div class="exp-label">Total SO KG</div><div class="exp-val">${fmt(r.totalSoQty)}</div></div>
+      <div class="exp-field"><div class="exp-label">Total SO UNT</div><div class="exp-val">${r.totalSoQtyUnits!=null?fmt(r.totalSoQtyUnits):'—'}</div></div>
+      <div class="exp-field"><div class="exp-label">Unique SO Days</div><div class="exp-val">${r.uniqueDays||'—'}</div></div>
+      <div class="exp-field"><div class="exp-label">Stock Age</div><div class="exp-val">${fmt(r.age)} days</div></div>
+      <div class="exp-field"><div class="exp-label">Inventory Value</div><div class="exp-val">${fmtCur(r.value)}</div></div>
+      <div class="exp-field"><div class="exp-label">Recent Demand (30d)</div><div class="exp-val">${r.hasRecentDemand?'✅ Yes':'❌ No'}</div></div>
+      <div class="exp-field" style="max-width:220px"><div class="exp-label">Warehouse</div><div class="exp-val" style="font-size:10px;line-height:1.4">${esc(r.warehouse||'—')}</div></div>
+    </div>` : '';
+
+    return rowHtml+expHtml;
+  }).join('');
+}
+
+function toggleExpand(i){
+  expandedIdx = expandedIdx===i ? null : i;
+  renderTable();
+}
+
+function esc(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function setTimestamp(){
+  const now = new Date();
+  document.getElementById('ts').textContent = now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('dataNote').textContent = 'Data as of '+now.toLocaleString('en-IN');
+}
+
+async function fetchLive(){
+  const url = document.getElementById('asUrl').value.trim() || appsScriptUrl;
+  if(!url){
+    document.getElementById('connStatus').textContent='⚠ No URL set — showing embedded data';
+    return;
+  }
+  document.getElementById('connStatus').textContent='⟳ Fetching…';
+  try{
+    const res = await fetch(url+'?action=getData');
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const json = await res.json();
+    if(json.error) throw new Error(json.error);
+    allData = json.data || [];
+    document.getElementById('connStatus').textContent=`✓ Live · ${allData.length} items`;
+    reload();
+  } catch(e){
+    document.getElementById('connStatus').textContent='✗ '+e.message+' (showing embedded data)';
+    allData = [...EMBEDDED_DATA];
+    reload();
+  }
+}
+
+function connectSheet(){
+  appsScriptUrl = document.getElementById('asUrl').value.trim();
+  if(appsScriptUrl) localStorage.setItem('fg_doh_url', appsScriptUrl);
+  fetchLive();
+}
+
+function reload(){
+  filtered=[...allData];
+  sortData();
+  expandedIdx=null;
+  buildSummary();
+  buildLegend();
+  renderTable();
+  setTimestamp();
+  document.getElementById('countInfo').textContent=`${filtered.length} of ${allData.length} items`;
+}
+
+// INIT
+buildFilters();
+reload();
+
+// Auto-refresh every 5 min if URL set
+setInterval(()=>{ if(appsScriptUrl) fetchLive(); }, 5*60*1000);
+</script>
+</body>
+</html>
